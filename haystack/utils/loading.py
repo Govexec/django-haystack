@@ -160,26 +160,28 @@ class UnifiedIndex(object):
         indexes = []
 
         for app in settings.INSTALLED_APPS:
-            mod = importlib.import_module(app)
+            if not getattr(settings, 'HAYSTACK_IGNORE_APPS', None) or app not in settings.HAYSTACK_IGNORE_APPS:
+            
+                mod = importlib.import_module(app)
 
-            try:
-                search_index_module = importlib.import_module("%s.search_indexes" % app)
-            except ImportError:
-                if module_has_submodule(mod, 'search_indexes'):
-                    raise
+                try:
+                    search_index_module = importlib.import_module("%s.search_indexes" % app)
+                except ImportError:
+                    if module_has_submodule(mod, 'search_indexes'):
+                        raise
 
-                continue
+                    continue
 
-            for item_name, item in inspect.getmembers(search_index_module, inspect.isclass):
-                if getattr(item, 'haystack_use_for_indexing', False) and getattr(item, 'get_model', None):
-                    # We've got an index. Check if we should be ignoring it.
-                    class_path = "%s.search_indexes.%s" % (app, item_name)
+                for item_name, item in inspect.getmembers(search_index_module, inspect.isclass):
+                    if getattr(item, 'haystack_use_for_indexing', False) and getattr(item, 'get_model', None):
+                        # We've got an index. Check if we should be ignoring it.
+                        class_path = "%s.search_indexes.%s" % (app, item_name)
 
-                    if class_path in self.excluded_indexes or self.excluded_indexes_ids.get(item_name) == id(item):
-                        self.excluded_indexes_ids[str(item_name)] = id(item)
-                        continue
+                        if class_path in self.excluded_indexes or self.excluded_indexes_ids.get(item_name) == id(item):
+                            self.excluded_indexes_ids[str(item_name)] = id(item)
+                            continue
 
-                    indexes.append(item())
+                        indexes.append(item())
 
         return indexes
 
